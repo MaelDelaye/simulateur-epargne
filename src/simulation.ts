@@ -69,8 +69,8 @@ export function propertyMonthlyIncome(project: PropertyProject): number {
 
 export function validateProject(project: PropertyProject): string[] {
   const errors: string[] = []
-  if (!Number.isFinite(project.annualCharges) || project.annualCharges < 0 ||
-      project.annualCharges > 100_000_000) {
+  if (project.propertyType === 'primary' && (!Number.isFinite(project.annualCharges) || project.annualCharges < 0 ||
+      project.annualCharges > 100_000_000)) {
     errors.push('Les charges annuelles doivent être comprises entre 0 et 100 000 000 €.')
   }
   if (!propertyTypes.some((type) => type.value === project.propertyType)) {
@@ -181,7 +181,7 @@ export function calculateSimulation(parameters: SimulationParameters): {
     if (month % 12 !== 0) continue
     const year = month / 12
     const chargedProjects = states.filter((state) =>
-      state.project.purchaseYear < year && state.project.annualCharges > 0)
+      state.project.propertyType === 'primary' && state.project.purchaseYear < year && state.project.annualCharges > 0)
     const requiredCharges = chargedProjects.reduce((sum, state) => sum + state.project.annualCharges, 0)
     if (Math.round(requiredCharges * 100) > Math.round(investment * 100)) {
       return {

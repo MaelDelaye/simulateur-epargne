@@ -12,6 +12,10 @@ const defaults: SimulationParameters = {
 }
 const parameters = reactive<SimulationParameters>(structuredClone(defaults))
 let nextProjectId = 2
+const monthlySalary = ref(0)
+const salaryValid = computed(() => Number.isFinite(monthlySalary.value) &&
+  monthlySalary.value >= 0 && monthlySalary.value <= 100_000_000)
+const debtLimit = computed(() => monthlySalary.value * 0.35)
 const editingProjectId = ref<number | null>(null)
 const nameDraft = ref('')
 
@@ -59,6 +63,7 @@ function addProject() {
 }
 
 function resetParameters() {
+  monthlySalary.value = 0
   editingProjectId.value = null
   Object.assign(parameters, structuredClone(defaults))
   nextProjectId = 2
@@ -129,6 +134,11 @@ function exportCsv() {
           <p class="field-hint">Les apports des achats au départ sont déduits. Le reste est placé jusqu’aux achats suivants.</p>
           <div class="inline-result"><span>Apports au départ</span><strong>{{ allocationValid ? euro(depositsAtStart) : '—' }}</strong></div>
           <div class="inline-result"><span>Placement financier</span><strong>{{ allocationValid ? euro(investment) : '—' }}</strong></div>
+          <label for="monthly-salary">Salaire mensuel net avant impôt</label>
+          <div class="input-unit"><AmountInput id="monthly-salary" v-model="monthlySalary" aria-describedby="salary-hint" :aria-invalid="!salaryValid" /><span>€/mois</span></div>
+          <p v-if="!salaryValid" class="field-hint" role="alert">Le salaire mensuel doit être compris entre 0 et 100 000 000 €.</p>
+          <div class="inline-result" aria-live="polite"><span>Mensualité correspondant à 35 %</span><strong id="debt-limit">{{ salaryValid ? preciseEuro(debtLimit) : '—' }} <small>/ mois</small></strong></div>
+          <p id="salary-hint" class="field-hint">Repère indicatif : salaire × 35 %, pour l’ensemble des crédits, assurance comprise. Les autres revenus et crédits existants ne sont pas pris en compte. Le salaire n’est pas ajouté au placement et ne modifie pas la projection.</p>
         </section>
 
         <section class="property-projects" aria-label="Projets immobiliers">
@@ -162,9 +172,11 @@ function exportCsv() {
             <div class="input-unit"><AmountInput :id="`net-income-${project.id}`" v-model="project.monthlyNetIncome" :aria-describedby="`net-income-hint-${project.id}`" /><span>€/mois</span></div>
             <p :id="`net-income-hint-${project.id}`" class="field-hint">Montant déjà net des charges et de la fiscalité, ajouté au placement dès le mois suivant l’achat. Le crédit reste financé séparément par vos revenus.</p>
           </template>
-          <label :for="`annual-charges-${project.id}`">Charges annuelles supplémentaires</label>
-          <div class="input-unit"><AmountInput :id="`annual-charges-${project.id}`" v-model="project.annualCharges" :aria-describedby="`annual-charges-hint-${project.id}`" /><span>€/an</span></div>
-          <p :id="`annual-charges-hint-${project.id}`" class="field-hint">Prélevées sur le placement à chaque anniversaire de l’achat. Ne renseignez pas les charges déjà déduites des revenus nets.</p>
+          <template v-if="project.propertyType === 'primary'">
+            <label :for="`annual-charges-${project.id}`">Charges annuelles supplémentaires</label>
+            <div class="input-unit"><AmountInput :id="`annual-charges-${project.id}`" v-model="project.annualCharges" :aria-describedby="`annual-charges-hint-${project.id}`" /><span>€/an</span></div>
+            <p :id="`annual-charges-hint-${project.id}`" class="field-hint">Prélevées sur le placement à chaque anniversaire de l’achat, uniquement pour une résidence principale.</p>
+          </template>
           <label :for="`purchase-year-${project.id}`">Année d’achat</label>
           <select :id="`purchase-year-${project.id}`" v-model.number="project.purchaseYear">
             <option v-for="year in 26" :key="year - 1" :value="year - 1">{{ year === 1 ? 'Au départ (année 0)' : `Dans ${year - 1} an${year > 2 ? 's' : ''}` }}</option>
@@ -263,7 +275,7 @@ function exportCsv() {
           <h2><span aria-hidden="true">ⓘ</span> Comprendre cette simulation</h2>
           <p>Les apports des achats au départ sont déduits de l’épargne initiale et le reste est placé. Chaque achat futur intervient après le nombre d’années indiqué, après le versement mensuel de cette échéance : son apport est alors retiré du placement. Les apports simultanés doivent être finançables ensemble ; sinon une alerte bloque la projection. Le prix saisi est la valeur du bien à sa date d’achat. Les achats hors horizon ne sont pas inclus.</p>
           <p>Chaque crédit vaut le prix du bien moins son apport et commence à l’achat. La première mensualité est due le mois suivant. La valeur de chaque bien évolue seulement après son achat. Le patrimoine immobilier et la dette affichés sont les totaux de tous les projets achetés. Les intérêts du placement comprennent les gains réalisés avant le retrait des apports, sans compter les versements ni traiter les retraits comme des pertes.</p>
-          <p>Les charges annuelles supplémentaires sont constantes et prélevées sur le placement à chaque anniversaire de l’achat, après les revenus et versements du mois et avant les nouveaux achats. Elles continuent après le remboursement du prêt. Aucune charge n’est prélevée à l’achat. Si le capital est insuffisant, une alerte bloque la projection. Les charges déjà déduites des revenus nets ne doivent pas être saisies une seconde fois ; ces dépenses ne sont pas des pertes de rendement du placement.</p>
+          <p>Les charges annuelles supplémentaires concernent uniquement les résidences principales. Elles sont constantes et prélevées sur le placement à chaque anniversaire de l’achat, après les revenus et versements du mois et avant les nouveaux achats. Elles continuent après le remboursement du prêt. Aucune charge n’est prélevée à l’achat. Si le capital est insuffisant, une alerte bloque la projection. Pour les résidences secondaires et investissements locatifs, les charges sont déjà incluses dans les revenus nets saisis et ne sont pas déduites séparément.</p>
           <p><strong>Les mensualités du prêt et l’épargne mensuelle supplémentaire sont financées par vos revenus, en dehors de l’épargne de départ.</strong> L’épargne mensuelle et les revenus nets des résidences secondaires ou investissements locatifs sont versés au placement en fin de mois. Les revenus immobiliers sont constants et commencent le mois suivant l’achat, même après remboursement du prêt. Ils sont déjà nets des charges et de la fiscalité : aucune nouvelle déduction n’est appliquée, et ils ne servent pas à payer le crédit dans cette simulation. Une résidence principale ne produit aucun revenu. Les intérêts du placement excluent les versements et les revenus immobiliers. L’immobilier n’est pas de l’argent immédiatement disponible.</p>
           <p>Prêt à taux fixe, amorti mensuellement ; rendement annuel constant et intérêts capitalisés. Fiscalité, inflation et frais non renseignés exclus. Aucune assurance, aucun frais d’achat, de placement ou d’entretien n’est calculé automatiquement. Les rendements ne sont pas garantis : cette estimation ne constitue pas un conseil financier.</p>
         </aside>

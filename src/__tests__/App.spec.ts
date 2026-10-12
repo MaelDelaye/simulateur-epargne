@@ -8,6 +8,45 @@ const money = (value: number) => new Intl.NumberFormat('fr-FR', {
 const text = (value: string) => value.replace(/\s/g, ' ')
 
 describe('App', () => {
+  it.each([
+    ['3000', 1050], ['4000', 1400], ['2500,50', 875.175], ['0', 0],
+  ])('displays 35 percent of a net monthly salary of %s without changing the projection', async (salary, limit) => {
+    const wrapper = mount(App)
+    const initialProjection = wrapper.get('tbody').text()
+    await wrapper.get('#monthly-salary').setValue(salary)
+    const expected = new Intl.NumberFormat('fr-FR', {
+      style: 'currency', currency: 'EUR', minimumFractionDigits: 2, maximumFractionDigits: 2,
+    }).format(limit)
+    expect(text(wrapper.get('#debt-limit').text())).toBe(`${text(expected)} / mois`)
+    expect(wrapper.get('tbody').text()).toBe(initialProjection)
+    await wrapper.get('.parameters > .section-heading button').trigger('click')
+    expect(wrapper.get<HTMLInputElement>('#monthly-salary').element.value).toBe('0')
+  })
+
+  it.each(['', '-1', 'abc', '100000001'])('shows an explicit error for invalid salary "%s"', async (salary) => {
+    const wrapper = mount(App)
+    await wrapper.get('#monthly-salary').setValue(salary)
+    expect(wrapper.get('#monthly-salary').attributes('aria-invalid')).toBe('true')
+    expect(wrapper.get('[role="alert"]').text()).toContain('Le salaire mensuel')
+    expect(wrapper.get('#debt-limit').text()).toContain('—')
+    expect(wrapper.find('table').exists()).toBe(true)
+    await wrapper.get('#monthly-salary').setValue('3000')
+    expect(wrapper.find('[role="alert"]').exists()).toBe(false)
+  })
+
+  it.each(['secondary', 'rental'])('hides and ignores charges for %s and restores them for primary', async (propertyType) => {
+    const wrapper = mount(App)
+    await wrapper.get('#investment-rate').setValue('0')
+    await wrapper.get('#annual-charges-1').setValue('1000')
+    await wrapper.get('#property-type-1').setValue(propertyType)
+    expect(wrapper.find('#annual-charges-1').exists()).toBe(false)
+    expect(text(wrapper.findAll('tbody tr').at(-1)!.findAll('td')[0]!.text())).toBe(money(30000))
+    expect(text(wrapper.findAll('tbody tr').at(-1)!.findAll('td').at(-1)!.text())).toBe(money(0))
+    await wrapper.get('#property-type-1').setValue('primary')
+    expect(wrapper.get<HTMLInputElement>('#annual-charges-1').element.value).toBe('1 000')
+    expect(text(wrapper.findAll('tbody tr').at(-1)!.findAll('td')[0]!.text())).toBe(money(10000))
+  })
+
   it('deducts charges, displays their cumulative cost and resets the input', async () => {
     const wrapper = mount(App)
     expect(wrapper.get<HTMLInputElement>('#annual-charges-1').element.value).toBe('0')
@@ -269,7 +308,8 @@ describe('App', () => {
     const wrapper = mount(App)
     await wrapper.get('#property-type-1').setValue('rental')
     await wrapper.get('#net-income-1').setValue('500')
-    await wrapper.get('#annual-charges-1').setValue('1000')
+    await wrapper.get('.add-project-button').trigger('click')
+    await wrapper.get('#annual-charges-2').setValue('1000')
     await wrapper.get('.export-button').trigger('click')
     expect(download).toBe('simulation-epargne-20-ans.csv')
     expect(href).toBe('blob:simulation')

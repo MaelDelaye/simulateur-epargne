@@ -51,10 +51,10 @@ describe('financial helpers', () => {
 })
 
 describe('simulation', () => {
-  it.each(['primary', 'secondary', 'rental'] as const)('deducts annual charges from a %s property only after purchase', (propertyType) => {
+  it('deducts annual charges from a primary residence only after purchase', () => {
     const input = parameters({
       investmentRate: 0, monthlySavings: 0, years: 10,
-      projects: [project(1, { propertyType, annualCharges: 1000, purchaseYear: 2, loanYears: 5 })],
+      projects: [project(1, { annualCharges: 1000, purchaseYear: 2, loanYears: 5 })],
     })
     const rows = simulate(input)
     expect(rows[2]!.propertyCharges).toBe(0)
@@ -65,6 +65,14 @@ describe('simulation', () => {
     for (const row of rows) {
       expect(row.investment).toBeCloseTo(input.savings + row.contributions + row.propertyIncome -
         row.deposits - row.propertyCharges + row.investmentInterest, 6)
+    }
+  })
+
+  it.each(['secondary', 'rental'] as const)('ignores stored charges and their validation for a %s property', (propertyType) => {
+    for (const annualCharges of [100000000, -1, NaN]) {
+      const input = parameters({ projects: [project(1, { propertyType, annualCharges })] })
+      expect(validateParameters(input)).toEqual([])
+      expect(simulate(input)).toEqual(simulate(parameters({ projects: [project(1, { propertyType })] })))
     }
   })
 
@@ -100,12 +108,13 @@ describe('simulation', () => {
     const input = parameters({
       savings: 0, monthlySavings: 50, investmentRate: 0, years: 5,
       projects: [
-        project(1, { propertyType: 'rental', monthlyNetIncome: 50, deposit: 0, annualCharges: 1200 }),
+        project(1, { propertyType: 'rental', monthlyNetIncome: 50, deposit: 0 }),
+        project(3, { deposit: 0, annualCharges: 1200 }),
         project(2, { purchaseYear: 1, deposit: 100 }),
       ],
     })
     expect(calculateSimulation(input).errors[0]).toMatch(/Année 1.*apports/)
-    const rows = simulate({ ...input, projects: [input.projects[0]!] })
+    const rows = simulate({ ...input, projects: input.projects.slice(0, 2) })
     expect(rows[1]!.investment).toBe(0)
     expect(rows[5]!.propertyCharges).toBe(6000)
     expect(rows[5]!.propertyIncome).toBe(3000)
