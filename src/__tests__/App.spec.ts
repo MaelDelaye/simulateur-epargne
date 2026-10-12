@@ -16,6 +16,35 @@ const text = (value: string) => value.replace(/\s/g, ' ')
 describe('App', () => {
   beforeEach(() => localStorage.clear())
 
+  it('displays each loan payment as a percentage of salary and updates it reactively', async () => {
+    const wrapper = mount(App)
+    expect(wrapper.find('.project-debt-ratio').exists()).toBe(false)
+    await wrapper.get('#monthly-salary').setValue('3000')
+    expect(text(wrapper.get('.project-debt-ratio').text())).toBe('· 38,7 % du salaire')
+    await wrapper.get('#loan-rate-1').setValue('0')
+    expect(text(wrapper.get('.project-debt-ratio').text())).toBe('· 27,8 % du salaire')
+    await wrapper.get('.add-project-button').trigger('click')
+    await wrapper.get('#loan-rate-2').setValue('0')
+    expect(wrapper.findAll('.project-debt-ratio')).toHaveLength(2)
+    expect(text(wrapper.findAll('.project-debt-ratio')[1]!.text())).toBe('· 27,8 % du salaire')
+    await wrapper.get('#property-price-1').setValue('30000')
+    expect(text(wrapper.findAll('.project-debt-ratio')[0]!.text())).toBe('· 0 % du salaire')
+    await wrapper.get('#loan-rate-1').setValue('-1')
+    expect(
+      wrapper.get('.property-projects .parameter-card').find('.project-debt-ratio').exists(),
+    ).toBe(false)
+  })
+
+  it.each(['', '0', '-1', 'abc'])(
+    'hides loan-to-salary percentages for salary "%s"',
+    async (salary) => {
+      const wrapper = mount(App)
+      await wrapper.get('#monthly-salary').setValue('3000')
+      await wrapper.get('#monthly-salary').setValue(salary)
+      expect(wrapper.find('.project-debt-ratio').exists()).toBe(false)
+    },
+  )
+
   it('compares a save without loading it, updates the active scenario and closes on deletion', async () => {
     const wrapper = mount(App)
     await wrapper.get('#simulation-name').setValue('Référence')

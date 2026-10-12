@@ -481,7 +481,21 @@ function exportCsv() {
               <span>Mensualité hors assurance</span
               ><strong
                 >{{ validateProject(project).length ? '—' : preciseEuro(projectPayment(project)) }}
-                <small>/ mois</small></strong
+                <small>/ mois</small>
+                <small
+                  v-if="salaryValid && monthlySalary > 0 && !validateProject(project).length"
+                  class="project-debt-ratio"
+                  title="Part du salaire pour ce prêt uniquement, hors assurance et autres crédits"
+                >
+                  ·
+                  {{
+                    new Intl.NumberFormat('fr-FR', {
+                      style: 'percent',
+                      maximumFractionDigits: 1,
+                    }).format(projectPayment(project) / monthlySalary)
+                  }}
+                  du salaire</small
+                ></strong
               >
             </div>
             <p class="field-hint">
