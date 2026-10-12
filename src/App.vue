@@ -2,7 +2,8 @@
 import { computed, nextTick, reactive, ref } from 'vue'
 import AmountInput from './components/AmountInput.vue'
 import SavedSimulations from './components/SavedSimulations.vue'
-import type { SimulationSnapshot } from './savedSimulations'
+import SimulationComparison from './components/SimulationComparison.vue'
+import type { SavedSimulation, SimulationSnapshot } from './savedSimulations'
 import { formatAmount } from './amount'
 import { calculateSimulation, durations, initialDeposits, investmentAmount, loanAmount, monthlyPayment, projectName, propertyTypes, validateProject } from './simulation'
 import type { Projection, PropertyProject, SimulationParameters } from './simulation'
@@ -15,6 +16,7 @@ const defaults: SimulationParameters = {
 const parameters = reactive<SimulationParameters>(structuredClone(defaults))
 let nextProjectId = 2
 const monthlySalary = ref(0)
+const comparedSimulation = ref<SavedSimulation | null>(null)
 const salaryValid = computed(() => Number.isFinite(monthlySalary.value) &&
   monthlySalary.value >= 0 && monthlySalary.value <= 100_000_000)
 const debtLimit = computed(() => monthlySalary.value * 0.35)
@@ -115,7 +117,9 @@ function exportCsv() {
     <a class="brand" href="#main"><span class="brand-icon" aria-hidden="true">↗</span> horizon<span class="brand-dot">.</span></a>
     <span class="topbar-caption">SIMULATEUR DE PATRIMOINE</span>
     <span class="local-badge"><span aria-hidden="true">●</span> Vos données restent dans votre navigateur</span>
-    <SavedSimulations :parameters="parameters" :monthly-salary="monthlySalary" @load="loadSimulation" />
+    <SavedSimulations :parameters="parameters" :monthly-salary="monthlySalary" @load="loadSimulation"
+      @compare="comparedSimulation = $event"
+      @remove="comparedSimulation?.id === $event && (comparedSimulation = null)" />
   </header>
 
   <main id="main">
@@ -226,6 +230,7 @@ function exportCsv() {
       </aside>
 
       <section class="results" aria-label="Résultats de simulation">
+        <SimulationComparison v-if="comparedSimulation" :active="parameters" :saved="comparedSimulation" @close="comparedSimulation = null" />
         <div v-if="errors.length" class="error-panel" role="alert">
           <h2>Quelques paramètres à ajuster</h2>
           <ul><li v-for="error in errors" :key="error">{{ error }}</li></ul>

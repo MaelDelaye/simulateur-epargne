@@ -40,6 +40,8 @@ h2 { font-size: 15px; font-weight: 650; letter-spacing: -.25px; }
 .saved-list strong { display: block; overflow-wrap: anywhere; font-size: 13px; }
 .saved-actions { display: flex; gap: 16px; align-items: center; }
 .storage-error { font-size: 12px; color: #99412b; }
+.comparison-dashed { stroke-dasharray: 5 5; }
+.comparison .error-panel, .comparison .table-scroll { margin-top: 16px; }
 .project-heading { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 18px; }
 .project-heading h3 { font-size: 13px; margin-bottom: 0; overflow-wrap: anywhere; min-width: 0; }
 .project-title { display: flex; align-items: center; gap: 6px; min-width: 0; flex: 1; }

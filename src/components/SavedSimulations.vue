@@ -4,7 +4,11 @@ import { isSnapshot, readSavedSimulations, SavedSimulationError, writeSavedSimul
 import type { SavedSimulation, SimulationSnapshot } from '../savedSimulations'
 
 const props = defineProps<SimulationSnapshot>()
-const emit = defineEmits<{ load: [snapshot: SimulationSnapshot] }>()
+const emit = defineEmits<{
+  load: [snapshot: SimulationSnapshot]
+  compare: [simulation: SavedSimulation]
+  remove: [id: string]
+}>()
 const name = ref('')
 const saved = ref<SavedSimulation[]>([])
 const message = ref('')
@@ -96,7 +100,22 @@ function remove(id: string) {
     const next = entries.filter((item) => item.id !== id)
     writeSavedSimulations(storage, next)
     saved.value = next
+    emit('remove', id)
     message.value = `« ${entry.name} » a été supprimée.`
+  })
+}
+
+function compare(id: string) {
+  withStorage((storage) => {
+    const entries = readSavedSimulations(storage)
+    const entry = entries.find((item) => item.id === id)
+    saved.value = entries
+    if (!entry) {
+      error.value = 'Cette sauvegarde n’existe plus dans le navigateur.'
+      return
+    }
+    emit('compare', structuredClone(entry))
+    closeMenu()
   })
 }
 </script>
@@ -122,6 +141,7 @@ function remove(id: string) {
         <div><strong>{{ entry.name }}</strong><span class="field-hint">{{ date(entry.savedAt) }}</span></div>
         <div class="saved-actions">
           <button class="text-button" :aria-label="`Charger ${entry.name}`" @click="load(entry.id)">Charger</button>
+          <button class="text-button" :aria-label="`Comparer ${entry.name}`" @click="compare(entry.id)">Comparer</button>
           <button class="text-button" :aria-label="`Supprimer la simulation ${entry.name}`" @click="remove(entry.id)">Supprimer</button>
         </div>
       </li>

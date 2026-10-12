@@ -11,6 +11,24 @@ const text = (value: string) => value.replace(/\s/g, ' ')
 describe('App', () => {
   beforeEach(() => localStorage.clear())
 
+  it('compares a save without loading it, updates the active scenario and closes on deletion', async () => {
+    const wrapper = mount(App)
+    await wrapper.get('#simulation-name').setValue('Référence')
+    await wrapper.get('.saved-simulations form').trigger('submit')
+    await wrapper.get('#savings').setValue('80000')
+    await wrapper.get('[aria-label="Comparer Référence"]').trigger('click')
+    expect(wrapper.find('.comparison').exists()).toBe(true)
+    expect(wrapper.get<HTMLInputElement>('#savings').element.value).toBe('80 000')
+    const before = wrapper.get('.comparison tbody').text()
+    await wrapper.get('#monthly-savings').setValue('500')
+    expect(wrapper.get('.comparison tbody').text()).not.toBe(before)
+    await wrapper.get('.comparison button').trigger('click')
+    expect(wrapper.find('.comparison').exists()).toBe(false)
+    await wrapper.get('[aria-label="Comparer Référence"]').trigger('click')
+    await wrapper.get('[aria-label="Supprimer la simulation Référence"]').trigger('click')
+    expect(wrapper.find('.comparison').exists()).toBe(false)
+  })
+
   it('saves and reloads all inputs, salary and projects and generates unique IDs after loading', async () => {
     const wrapper = mount(App)
     await wrapper.get('#savings').setValue('90000')
