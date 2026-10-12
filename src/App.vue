@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, nextTick, reactive, ref } from 'vue'
 import AmountInput from './components/AmountInput.vue'
+import SavedSimulations from './components/SavedSimulations.vue'
+import type { SimulationSnapshot } from './savedSimulations'
 import { formatAmount } from './amount'
 import { calculateSimulation, durations, initialDeposits, investmentAmount, loanAmount, monthlyPayment, projectName, propertyTypes, validateProject } from './simulation'
 import type { Projection, PropertyProject, SimulationParameters } from './simulation'
@@ -68,6 +70,13 @@ function resetParameters() {
   Object.assign(parameters, structuredClone(defaults))
   nextProjectId = 2
 }
+
+function loadSimulation(snapshot: SimulationSnapshot) {
+  editingProjectId.value = null
+  Object.assign(parameters, snapshot.parameters)
+  monthlySalary.value = snapshot.monthlySalary
+  nextProjectId = Math.max(...parameters.projects.map((project) => project.id)) + 1
+}
 const euro = (value: number) => new Intl.NumberFormat('fr-FR', {
   style: 'currency', currency: 'EUR', maximumFractionDigits: 0,
 }).format(value)
@@ -106,6 +115,7 @@ function exportCsv() {
     <a class="brand" href="#main"><span class="brand-icon" aria-hidden="true">↗</span> horizon<span class="brand-dot">.</span></a>
     <span class="topbar-caption">SIMULATEUR DE PATRIMOINE</span>
     <span class="local-badge"><span aria-hidden="true">●</span> Vos données restent dans votre navigateur</span>
+    <SavedSimulations :parameters="parameters" :monthly-salary="monthlySalary" @load="loadSimulation" />
   </header>
 
   <main id="main">

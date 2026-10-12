@@ -1,5 +1,6 @@
 import { mount } from '@vue/test-utils'
-import { describe, expect, it, vi } from 'vitest'
+import { nextTick } from 'vue'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import App from '../App.vue'
 
 const money = (value: number) => new Intl.NumberFormat('fr-FR', {
@@ -8,6 +9,41 @@ const money = (value: number) => new Intl.NumberFormat('fr-FR', {
 const text = (value: string) => value.replace(/\s/g, ' ')
 
 describe('App', () => {
+  beforeEach(() => localStorage.clear())
+
+  it('saves and reloads all inputs, salary and projects and generates unique IDs after loading', async () => {
+    const wrapper = mount(App)
+    await wrapper.get('#savings').setValue('90000')
+    await wrapper.get('#monthly-salary').setValue('4000')
+    await wrapper.get('#monthly-savings').setValue('500')
+    await wrapper.get('.add-project-button').trigger('click')
+    await wrapper.get('#property-type-2').setValue('rental')
+    await wrapper.get('#net-income-2').setValue('700')
+    await wrapper.get('#purchase-year-2').setValue('3')
+    await wrapper.get('#simulation-name').setValue('Deux biens')
+    await wrapper.get('.saved-simulations form').trigger('submit')
+    const projection = wrapper.get('tbody').text()
+    await wrapper.get('.parameters > .section-heading button').trigger('click')
+    expect(wrapper.findAll('.property-projects .parameter-card')).toHaveLength(1)
+    await wrapper.get('[aria-label="Charger Deux biens"]').trigger('click')
+    expect(wrapper.get<HTMLInputElement>('#savings').element.value).toBe('90 000')
+    expect(wrapper.get<HTMLInputElement>('#monthly-salary').element.value).toBe('4 000')
+    expect(wrapper.get<HTMLInputElement>('#monthly-savings').element.value).toBe('500')
+    expect(wrapper.get<HTMLInputElement>('#net-income-2').element.value).toBe('700')
+    expect(wrapper.get<HTMLSelectElement>('#purchase-year-2').element.value).toBe('3')
+    expect(wrapper.get('tbody').text()).toBe(projection)
+    await wrapper.get('.add-project-button').trigger('click')
+    expect(wrapper.find('#property-price-3').exists()).toBe(true)
+    wrapper.unmount()
+    const reopened = mount(App)
+    await nextTick()
+    await reopened.get('[aria-label="Charger Deux biens"]').trigger('click')
+    expect(reopened.get('tbody').text()).toBe(projection)
+    await reopened.get('[aria-label="Supprimer la simulation Deux biens"]').trigger('click')
+    expect(reopened.get('tbody').text()).toBe(projection)
+    expect(reopened.findAll('.saved-list li')).toHaveLength(0)
+  })
+
   it.each([
     ['3000', 1050], ['4000', 1400], ['2500,50', 875.175], ['0', 0],
   ])('displays 35 percent of a net monthly salary of %s without changing the projection', async (salary, limit) => {
