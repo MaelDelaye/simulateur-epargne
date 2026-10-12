@@ -5,7 +5,9 @@ Application Vue 3 et TypeScript de simulation du patrimoine sur 5, 10, 15, 20 ou
 ## Utilisation
 
 - Un projet immobilier est présent par défaut. Ajouter autant de projets que nécessaire, ou supprimer les projets supplémentaires. La réinitialisation restaure un seul projet.
+- Chaque projet peut être nommé. Le nom apparaît dans le titre de sa carte, son bouton de suppression et les alertes. Un nom vide utilise « Projet immobilier » suivi de son identifiant ; renommer un projet ne modifie pas les calculs.
 - Chaque projet possède son année d’achat (0 à 25), prix, apport, taux et durée du prêt, et évolution immobilière. Le crédit est calculé automatiquement : prix du bien − apport.
+- Chaque projet est une résidence principale (par défaut), une résidence secondaire ou un investissement locatif. Pour les deux derniers types, saisir les revenus nets mensuels (0 € par défaut). Le montant saisi est conservé lors d’un changement de type, mais ignoré pour une résidence principale.
 - L’épargne disponible est la base de la simulation : seuls les apports des achats au départ sont déduits immédiatement. Le reste est placé ; les futurs apports sont retirés à la date d’achat.
 - Une épargne mensuelle supplémentaire, nulle par défaut, peut être versée sur le placement pendant toute la simulation. Les versements cumulés apparaissent dans les résultats et l’export CSV, séparément des intérêts.
 - La durée du prêt est indépendante de l’horizon de simulation.
@@ -24,13 +26,15 @@ Chaque prêt à taux fixe est amorti mensuellement (taux annuel nominal divisé 
 
 Le rendement du placement est annuel, constant, avec intérêts composés réinvestis. L’évolution de la valeur immobilière est également composée annuellement et vaut 0 % par défaut.
 
-L’épargne mensuelle est financée par des revenus externes et versée en fin de mois. Le placement produit des intérêts au taux mensuel équivalent : **(1 + taux annuel / 100)^(1/12) − 1**. Les intérêts cumulés sont les gains ou pertes mensuels, y compris ceux réalisés avant les retraits d’apports. **Placement = épargne de départ + versements cumulés − apports cumulés + intérêts cumulés**. À rendement nul, il n’y a aucun intérêt. Le tableau et l’export CSV distinguent les versements, les apports et les intérêts.
+L’épargne mensuelle est financée par des revenus externes et versée en fin de mois. Le placement produit des intérêts au taux mensuel équivalent : **(1 + taux annuel / 100)^(1/12) − 1**. Les intérêts cumulés sont les gains ou pertes mensuels, y compris ceux réalisés avant les retraits d’apports. **Placement = épargne de départ + versements cumulés + revenus immobiliers nets cumulés − apports cumulés + intérêts cumulés**. À rendement nul, il n’y a aucun intérêt. Le tableau et l’export CSV distinguent les versements, les revenus immobiliers, les apports et les intérêts.
+
+Les revenus nets mensuels des résidences secondaires et investissements locatifs sont constants et ajoutés au placement en fin de mois, dès le mois suivant l’achat, jusqu’à la fin de la simulation, y compris après remboursement du prêt. Ils produisent des intérêts à partir du mois suivant leur encaissement et peuvent financer les apports d’achats ultérieurs. Aucun revenu n’est généré avant l’achat, pour un achat hors horizon ou à la dernière échéance, ni pour une résidence principale. Le montant est déjà net des charges et de la fiscalité ; aucune nouvelle déduction n’est appliquée. Les mensualités des crédits restent financées séparément par des revenus externes, sans être déduites de ces revenus immobiliers.
 
 **Épargne mobilisable** = valeur du placement.
 
 **Patrimoine net** = épargne mobilisable + somme des valeurs des biens achetés − somme des capitaux restant dus.
 
-Fiscalité, inflation, assurance, frais d’achat, frais de placement, entretien, loyers et versements autres que l’épargne mensuelle paramétrée ne sont pas pris en compte. Les résultats ne constituent pas un conseil financier et les rendements ne sont pas garantis.
+Fiscalité et charges ne sont pas calculées : les revenus immobiliers saisis doivent déjà être nets. Inflation, assurance, frais d’achat, frais de placement, entretien et revenus ou versements autres que ceux paramétrés ne sont pas pris en compte. Les résultats ne constituent pas un conseil financier et les rendements ne sont pas garantis.
 
 ## Développement
 

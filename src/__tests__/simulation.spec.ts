@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import {
   calculateSimulation, durations, initialDeposits, investmentAmount, loanAmount,
-  monthlyPayment, simulate, validateParameters, validateProject,
+  monthlyPayment, projectName, simulate, validateParameters, validateProject,
 } from '../simulation'
 import type { PropertyProject, SimulationParameters } from '../simulation'
 
 const project = (id = 1, overrides: Partial<PropertyProject> = {}): PropertyProject => ({
-  id, purchaseYear: 0, propertyPrice: 230000, deposit: 30000,
+  id, name: `Projet immobilier ${id}`, propertyType: 'primary', monthlyNetIncome: 0, purchaseYear: 0, propertyPrice: 230000, deposit: 30000,
   loanRate: 3.5, loanYears: 20, propertyRate: 0, ...overrides,
 })
 const parameters = (overrides: Partial<SimulationParameters> = {}): SimulationParameters => ({
@@ -15,6 +15,22 @@ const parameters = (overrides: Partial<SimulationParameters> = {}): SimulationPa
 })
 
 describe('financial helpers', () => {
+  it('uses a trimmed project name or a stable default for an empty name', () => {
+    expect(projectName(project(2, { name: '  Appartement Lyon  ' }))).toBe('Appartement Lyon')
+    expect(projectName(project(2, { name: '  ' }))).toBe('Projet immobilier 2')
+  })
+
+  it('identifies named projects in validation and insufficient funding alerts', () => {
+    const invalid = parameters({ projects: [project(1, { name: 'Maison', loanRate: -1 })] })
+    expect(validateParameters(invalid).join(' ')).toContain('Maison')
+    const unfunded = parameters({
+      savings: 0, monthlySavings: 0,
+      projects: [project(1, { name: 'Appartement Lyon', purchaseYear: 2 })],
+    })
+    expect(calculateSimulation(unfunded).errors.join(' ')).toContain('Appartement Lyon')
+    expect(simulate(parameters({ projects: [project(1, { name: 'Maison' })] })))
+      .toEqual(simulate(parameters()))
+  })
   it('deducts only initial deposits from initial investment', () => {
     const input = parameters({
       projects: [project(), project(2, { deposit: 10000 }), project(3, { purchaseYear: 5 })],
@@ -35,6 +51,77 @@ describe('financial helpers', () => {
 })
 
 describe('simulation', () => {
+  it.each(['secondary', 'rental'] as const)('reinvests net income from a %s property after purchase', (propertyType) => {
+    const input = parameters({
+      investmentRate: 0, monthlySavings: 0, years: 10,
+      projects: [project(1, { propertyType, monthlyNetIncome: 500, purchaseYear: 2, loanYears: 5 })],
+    })
+    const rows = simulate(input)
+    expect(rows[2]!.propertyIncome).toBe(0)
+    expect(rows[3]!.propertyIncome).toBe(6000)
+    expect(rows[10]!.propertyIncome).toBe(48000)
+    expect(rows[10]!.investment).toBe(78000)
+    expect(rows[10]!.investmentInterest).toBe(0)
+    expect(rows[10]!.debt).toBe(0)
+    for (const row of rows) {
+      expect(row.investment).toBeCloseTo(input.savings + row.contributions + row.propertyIncome -
+        row.deposits + row.investmentInterest, 6)
+    }
+  })
+
+  it('ignores stored income on a primary residence', () => {
+    const rows = simulate(parameters({ projects: [project(1, { monthlyNetIncome: 1000 })] }))
+    expect(rows.at(-1)!.propertyIncome).toBe(0)
+    expect(rows).toEqual(simulate(parameters()))
+  })
+
+  it('compounds income starting the month after receipt without counting it as interest', () => {
+    const input = parameters({
+      savings: 0, monthlySavings: 100,
+      projects: [project(1, { propertyType: 'rental', monthlyNetIncome: 500, deposit: 0 })],
+    })
+    const last = simulate(input).at(-1)!
+    const rate = Math.expm1(Math.log1p(0.05) / 12)
+    expect(last.investment).toBeCloseTo(600 * Math.expm1(240 * Math.log1p(rate)) / rate, 6)
+    expect(last.propertyIncome).toBe(120000)
+    expect(last.contributions).toBe(24000)
+    expect(last.investmentInterest).toBeCloseTo(last.investment - 144000, 6)
+  })
+
+  it('uses income from earlier projects to finance a subsequent deposit', () => {
+    const input = parameters({
+      savings: 0, monthlySavings: 0, investmentRate: 0, years: 5,
+      projects: [
+        project(1, { propertyType: 'rental', monthlyNetIncome: 500, deposit: 0 }),
+        project(2, { propertyType: 'secondary', monthlyNetIncome: 200, purchaseYear: 2, deposit: 12000 }),
+      ],
+    })
+    const rows = simulate(input)
+    expect(rows[2]!.investment).toBe(0)
+    expect(rows[2]!.propertyIncome).toBe(12000)
+    expect(rows[3]!.propertyIncome).toBe(20400)
+    expect(rows[3]!.investment).toBe(8400)
+  })
+
+  it.each([5, 6])('does not receive income for an acquisition in year %s of a 5-year projection', (purchaseYear) => {
+    const rows = simulate(parameters({
+      years: 5, projects: [project(1, { propertyType: 'rental', monthlyNetIncome: 1000, purchaseYear })],
+    }))
+    expect(rows.at(-1)!.propertyIncome).toBe(0)
+  })
+
+  it.each([-1, NaN, Infinity, 100000001])('rejects invalid net monthly income %s', (monthlyNetIncome) => {
+    const input = parameters({ projects: [project(1, { propertyType: 'secondary', monthlyNetIncome })] })
+    expect(validateParameters(input).join(' ')).toContain('revenus nets mensuels')
+    expect(() => simulate(input)).toThrow(RangeError)
+  })
+
+  it('rejects an unrecognized property type', () => {
+    const input = parameters()
+    Object.assign(input.projects[0]!, { propertyType: 'invalid' })
+    expect(validateParameters(input).join(' ')).toContain('type de bien')
+  })
+
   it.each(durations)('preserves accounting identities throughout %s years', (years) => {
     const input = parameters({ years })
     const rows = simulate(input)
@@ -139,7 +226,7 @@ describe('simulation', () => {
     })
     const result = calculateSimulation(input)
     expect(result.projection).toEqual([])
-    expect(result.errors[0]).toMatch(/Année 2.*capital insuffisant.*1, 2/)
+    expect(result.errors[0]).toMatch(/Année 2.*capital insuffisant.*1 \(Projet immobilier 1\), 2 \(Projet immobilier 2\)/)
     expect(simulate.bind(null, input)).toThrow(RangeError)
   })
 

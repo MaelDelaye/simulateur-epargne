@@ -1,7 +1,16 @@
 export const durations = [5, 10, 15, 20, 25] as const
+export const propertyTypes = [
+  { value: 'primary', label: 'Résidence principale' },
+  { value: 'secondary', label: 'Résidence secondaire' },
+  { value: 'rental', label: 'Investissement locatif' },
+] as const
+export type PropertyType = typeof propertyTypes[number]['value']
 
 export interface PropertyProject {
   id: number
+  name: string
+  propertyType: PropertyType
+  monthlyNetIncome: number
   purchaseYear: number
   propertyPrice: number
   deposit: number
@@ -23,6 +32,7 @@ export interface Projection {
   cash: number
   investment: number
   contributions: number
+  propertyIncome: number
   deposits: number
   investmentInterest: number
   property: number
@@ -47,8 +57,23 @@ export function loanAmount(project: PropertyProject): number {
   return project.propertyPrice - project.deposit
 }
 
+export function projectName(project: PropertyProject): string {
+  return project.name.trim() || `Projet immobilier ${project.id}`
+}
+
+export function propertyMonthlyIncome(project: PropertyProject): number {
+  return project.propertyType === 'primary' ? 0 : project.monthlyNetIncome
+}
+
 export function validateProject(project: PropertyProject): string[] {
   const errors: string[] = []
+  if (!propertyTypes.some((type) => type.value === project.propertyType)) {
+    errors.push('Sélectionnez un type de bien immobilier valide.')
+  }
+  if (project.propertyType !== 'primary' && (!Number.isFinite(project.monthlyNetIncome) ||
+      project.monthlyNetIncome < 0 || project.monthlyNetIncome > 100_000_000)) {
+    errors.push('Les revenus nets mensuels doivent être compris entre 0 et 100 000 000 €.')
+  }
   if ([project.propertyPrice, project.deposit].some((value) =>
     !Number.isFinite(value) || value < 0 || value > 100_000_000)) {
     errors.push('Le prix et l’apport doivent être compris entre 0 et 100 000 000 €.')
@@ -82,7 +107,7 @@ export function validateParameters(parameters: SimulationParameters): string[] {
   }
   if (parameters.projects.length === 0) errors.push('Ajoutez au moins un projet immobilier.')
   parameters.projects.forEach((project, index) => {
-    errors.push(...validateProject(project).map((error) => `Projet ${index + 1} : ${error}`))
+    errors.push(...validateProject(project).map((error) => `Projet ${index + 1} : ${projectName(project)} — ${error}`))
   })
   if (Math.round(initialDeposits(parameters) * 100) > Math.round(parameters.savings * 100)) {
     errors.push('Les apports des achats au départ dépassent votre épargne disponible.')
@@ -122,12 +147,16 @@ export function calculateSimulation(parameters: SimulationParameters): {
   let deposits = 0
   let loanInterest = 0
   let repayments = 0
+  let propertyIncome = 0
 
   for (let month = 0; month <= parameters.years * 12; month++) {
     if (month > 0) {
       const gain = investment * monthlyRate
+      const income = states.reduce((sum, state) => sum +
+        (month > state.project.purchaseYear * 12 ? propertyMonthlyIncome(state.project) : 0), 0)
       investmentInterest += gain
-      investment += gain + parameters.monthlySavings
+      propertyIncome += income
+      investment += gain + parameters.monthlySavings + income
       for (const state of states) {
         const elapsed = month - state.project.purchaseYear * 12
         if (elapsed <= 0 || elapsed > state.project.loanYears * 12) continue
@@ -151,7 +180,7 @@ export function calculateSimulation(parameters: SimulationParameters): {
       return {
         projection: [],
         errors: [`Année ${year} : capital insuffisant pour les apports des projets ${purchases
-          .map((state) => parameters.projects.indexOf(state.project) + 1).join(', ')}. ` +
+          .map((state) => `${parameters.projects.indexOf(state.project) + 1} (${projectName(state.project)})`).join(', ')}. ` +
           `${money(requiredDeposit)} nécessaires, ${money(investment)} disponibles. ` +
           'Réduisez les apports, augmentez l’épargne ou reportez les achats.'],
       }
@@ -168,7 +197,7 @@ export function calculateSimulation(parameters: SimulationParameters): {
       (year - state.project.purchaseYear < state.project.loanYears ? state.payment : 0), 0)
     rows.push({
       year, cash: 0, investment, contributions: parameters.monthlySavings * month,
-      deposits, investmentInterest, property, debt, loanInterest, repayments,
+      deposits, propertyIncome, investmentInterest, property, debt, loanInterest, repayments,
       monthlyPayments, available: investment, netWorth: investment + property - debt,
     })
   }
