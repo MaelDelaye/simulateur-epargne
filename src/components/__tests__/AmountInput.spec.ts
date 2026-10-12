@@ -10,7 +10,10 @@ describe('AmountInput', () => {
     })
     expect(wrapper.element.value).toBe('10 000,25')
     expect(wrapper.attributes()).toMatchObject({
-      id: 'amount', type: 'text', inputmode: 'decimal', 'aria-describedby': 'hint',
+      id: 'amount',
+      type: 'text',
+      inputmode: 'decimal',
+      'aria-describedby': 'hint',
     })
   })
 
@@ -54,7 +57,9 @@ describe('AmountInput', () => {
     const wrapper = mount(AmountInput, {
       props: {
         modelValue: 0,
-        'onUpdate:modelValue': (value) => { void wrapper.setProps({ modelValue: value }) },
+        'onUpdate:modelValue': (value) => {
+          void wrapper.setProps({ modelValue: value })
+        },
       },
     })
     await wrapper.get('input').setValue('10000,')

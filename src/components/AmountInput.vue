@@ -12,7 +12,8 @@ watch(model, (value) => {
 function onInput(event: Event) {
   const input = event.target
   if (!(input instanceof HTMLInputElement)) return
-  const charactersBeforeCursor = input.value.slice(0, input.selectionStart ?? input.value.length)
+  const charactersBeforeCursor = input.value
+    .slice(0, input.selectionStart ?? input.value.length)
     .replace(/\s/g, '').length
   draft.value = groupAmountInput(input.value)
   input.value = draft.value

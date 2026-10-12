@@ -73,3 +73,19 @@ Relancer automatiquement les tests lors des modifications :
 ```sh
 npm run test:watch
 ```
+
+## Formatage du code
+
+[Oxfmt](https://oxc.rs/docs/guide/usage/formatter.html) formate les fichiers du projet, notamment TypeScript, Vue, CSS et JSON. La configuration `.oxfmtrc.json` conserve les guillemets simples, l’absence de points-virgules et une indentation de deux espaces. Les imports ne sont pas réordonnés. Les fichiers ignorés par `.gitignore` et le fichier généré `package-lock.json` sont exclus.
+
+Formater les fichiers :
+
+```sh
+npm run format
+```
+
+Contrôler le formatage sans modifier les fichiers (utile en CI) :
+
+```sh
+npm run format:check
+```

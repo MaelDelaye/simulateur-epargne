@@ -8,12 +8,25 @@ import type { SimulationSnapshot } from '../../savedSimulations'
 const snapshot = (): SimulationSnapshot => ({
   monthlySalary: 3000,
   parameters: {
-    savings: 60000, monthlySavings: 200, investmentRate: 5, years: 20,
-    projects: [{
-      id: 1, name: 'Maison', propertyType: 'primary', monthlyNetIncome: 0,
-      annualCharges: 1000, purchaseYear: 0, propertyPrice: 230000, deposit: 30000,
-      loanRate: 3.5, loanYears: 20, propertyRate: 0,
-    }],
+    savings: 60000,
+    monthlySavings: 200,
+    investmentRate: 5,
+    years: 20,
+    projects: [
+      {
+        id: 1,
+        name: 'Maison',
+        propertyType: 'primary',
+        monthlyNetIncome: 0,
+        annualCharges: 1000,
+        purchaseYear: 0,
+        propertyPrice: 230000,
+        deposit: 30000,
+        loanRate: 3.5,
+        loanYears: 20,
+        propertyRate: 0,
+      },
+    ],
   },
 })
 
@@ -23,7 +36,9 @@ describe('SavedSimulations', () => {
   it('keeps the panel collapsed until the save icon is opened and closes on Escape', async () => {
     const wrapper = mount(SavedSimulations, { props: snapshot(), attachTo: document.body })
     expect(wrapper.get<HTMLDetailsElement>('details').element.open).toBe(false)
-    expect(wrapper.get('summary').attributes('aria-label')).toBe('Gérer les simulations sauvegardées')
+    expect(wrapper.get('summary').attributes('aria-label')).toBe(
+      'Gérer les simulations sauvegardées',
+    )
     wrapper.get<HTMLDetailsElement>('details').element.open = true
     await wrapper.get('details').trigger('toggle')
     expect(wrapper.get<HTMLDetailsElement>('details').element.open).toBe(true)
@@ -52,7 +67,10 @@ describe('SavedSimulations', () => {
     await nextTick()
     expect(reopened.findAll('.saved-list li')).toHaveLength(2)
     await reopened.get('[aria-label="Comparer Scénario A"]').trigger('click')
-    expect(reopened.emitted('compare')?.[0]?.[0]).toMatchObject({ name: 'Scénario A', ...snapshot() })
+    expect(reopened.emitted('compare')?.[0]?.[0]).toMatchObject({
+      name: 'Scénario A',
+      ...snapshot(),
+    })
     expect(reopened.get<HTMLDetailsElement>('details').element.open).toBe(false)
     await reopened.get('[aria-label="Charger Scénario A"]').trigger('click')
     expect(reopened.emitted('load')?.[0]?.[0]).toEqual(snapshot())
@@ -85,7 +103,9 @@ describe('SavedSimulations', () => {
   })
 
   it('reports unavailable storage', async () => {
-    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => { throw new DOMException('Denied', 'SecurityError') })
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new DOMException('Denied', 'SecurityError')
+    })
     const wrapper = mount(SavedSimulations, { props: snapshot() })
     await nextTick()
     expect(wrapper.get('[role="alert"]').text()).toContain('inaccessible')
@@ -93,7 +113,9 @@ describe('SavedSimulations', () => {
 
   it('does not report success or change its list on quota failure', async () => {
     const wrapper = mount(SavedSimulations, { props: snapshot() })
-    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new DOMException('Full', 'QuotaExceededError') })
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('Full', 'QuotaExceededError')
+    })
     await wrapper.get('#simulation-name').setValue('Test')
     await wrapper.get('form').trigger('submit')
     expect(wrapper.get('[role="alert"]').text()).toContain('plein')

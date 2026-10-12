@@ -7,8 +7,13 @@ describe('TheWelcome', () => {
   it('renders all five resource sections with icons', () => {
     const wrapper = mount(TheWelcome)
     expect(wrapper.findAllComponents(WelcomeItem)).toHaveLength(5)
-    expect(wrapper.findAll('h3').map((heading) => heading.text()))
-      .toEqual(['Documentation', 'Tooling', 'Ecosystem', 'Community', 'Support Vue'])
+    expect(wrapper.findAll('h3').map((heading) => heading.text())).toEqual([
+      'Documentation',
+      'Tooling',
+      'Ecosystem',
+      'Community',
+      'Support Vue',
+    ])
     expect(wrapper.findAll('i svg')).toHaveLength(5)
     for (const link of wrapper.findAll('a[target="_blank"]')) {
       expect(link.attributes('href')).toMatch(/^https:\/\//)

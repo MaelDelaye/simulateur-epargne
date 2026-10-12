@@ -4,7 +4,7 @@ export const propertyTypes = [
   { value: 'secondary', label: 'Résidence secondaire' },
   { value: 'rental', label: 'Investissement locatif' },
 ] as const
-export type PropertyType = typeof propertyTypes[number]['value']
+export type PropertyType = (typeof propertyTypes)[number]['value']
 
 export interface PropertyProject {
   id: number
@@ -47,7 +47,8 @@ export interface Projection {
 }
 
 export function initialDeposits(parameters: SimulationParameters): number {
-  return parameters.projects.filter((project) => project.purchaseYear === 0)
+  return parameters.projects
+    .filter((project) => project.purchaseYear === 0)
     .reduce((total, project) => total + project.deposit, 0)
 }
 
@@ -69,31 +70,50 @@ export function propertyMonthlyIncome(project: PropertyProject): number {
 
 export function validateProject(project: PropertyProject): string[] {
   const errors: string[] = []
-  if (project.propertyType === 'primary' && (!Number.isFinite(project.annualCharges) || project.annualCharges < 0 ||
-      project.annualCharges > 100_000_000)) {
+  if (
+    project.propertyType === 'primary' &&
+    (!Number.isFinite(project.annualCharges) ||
+      project.annualCharges < 0 ||
+      project.annualCharges > 100_000_000)
+  ) {
     errors.push('Les charges annuelles doivent être comprises entre 0 et 100 000 000 €.')
   }
   if (!propertyTypes.some((type) => type.value === project.propertyType)) {
     errors.push('Sélectionnez un type de bien immobilier valide.')
   }
-  if (project.propertyType !== 'primary' && (!Number.isFinite(project.monthlyNetIncome) ||
-      project.monthlyNetIncome < 0 || project.monthlyNetIncome > 100_000_000)) {
+  if (
+    project.propertyType !== 'primary' &&
+    (!Number.isFinite(project.monthlyNetIncome) ||
+      project.monthlyNetIncome < 0 ||
+      project.monthlyNetIncome > 100_000_000)
+  ) {
     errors.push('Les revenus nets mensuels doivent être compris entre 0 et 100 000 000 €.')
   }
-  if ([project.propertyPrice, project.deposit].some((value) =>
-    !Number.isFinite(value) || value < 0 || value > 100_000_000)) {
+  if (
+    [project.propertyPrice, project.deposit].some(
+      (value) => !Number.isFinite(value) || value < 0 || value > 100_000_000,
+    )
+  ) {
     errors.push('Le prix et l’apport doivent être compris entre 0 et 100 000 000 €.')
   }
   if (project.deposit > project.propertyPrice) {
     errors.push('L’apport ne peut pas dépasser le prix du bien immobilier.')
   }
-  if (!Number.isInteger(project.purchaseYear) || project.purchaseYear < 0 || project.purchaseYear > 25) {
+  if (
+    !Number.isInteger(project.purchaseYear) ||
+    project.purchaseYear < 0 ||
+    project.purchaseYear > 25
+  ) {
     errors.push('L’année d’achat doit être un entier compris entre 0 (départ) et 25.')
   }
   if (!Number.isFinite(project.loanRate) || project.loanRate < 0 || project.loanRate > 30) {
     errors.push('Le taux du prêt doit être compris entre 0 et 30 %.')
   }
-  if (!Number.isFinite(project.propertyRate) || project.propertyRate < -20 || project.propertyRate > 20) {
+  if (
+    !Number.isFinite(project.propertyRate) ||
+    project.propertyRate < -20 ||
+    project.propertyRate > 20
+  ) {
     errors.push('L’évolution immobilière doit être comprise entre −20 et 20 %.')
   }
   if (!durations.some((duration) => duration === project.loanYears)) {
@@ -104,21 +124,36 @@ export function validateProject(project: PropertyProject): string[] {
 
 export function validateParameters(parameters: SimulationParameters): string[] {
   const errors: string[] = []
-  if (!Number.isFinite(parameters.savings) || parameters.savings < 0 || parameters.savings > 100_000_000) {
+  if (
+    !Number.isFinite(parameters.savings) ||
+    parameters.savings < 0 ||
+    parameters.savings > 100_000_000
+  ) {
     errors.push('L’épargne de départ doit être comprise entre 0 et 100 000 000 €.')
   }
-  if (!Number.isFinite(parameters.monthlySavings) || parameters.monthlySavings < 0 ||
-      parameters.monthlySavings > 100_000_000) {
+  if (
+    !Number.isFinite(parameters.monthlySavings) ||
+    parameters.monthlySavings < 0 ||
+    parameters.monthlySavings > 100_000_000
+  ) {
     errors.push('L’épargne mensuelle doit être comprise entre 0 et 100 000 000 €.')
   }
   if (parameters.projects.length === 0) errors.push('Ajoutez au moins un projet immobilier.')
   parameters.projects.forEach((project, index) => {
-    errors.push(...validateProject(project).map((error) => `Projet ${index + 1} : ${projectName(project)} — ${error}`))
+    errors.push(
+      ...validateProject(project).map(
+        (error) => `Projet ${index + 1} : ${projectName(project)} — ${error}`,
+      ),
+    )
   })
   if (Math.round(initialDeposits(parameters) * 100) > Math.round(parameters.savings * 100)) {
     errors.push('Les apports des achats au départ dépassent votre épargne disponible.')
   }
-  if (!Number.isFinite(parameters.investmentRate) || parameters.investmentRate < -50 || parameters.investmentRate > 50) {
+  if (
+    !Number.isFinite(parameters.investmentRate) ||
+    parameters.investmentRate < -50 ||
+    parameters.investmentRate > 50
+  ) {
     errors.push('Le rendement du placement doit être compris entre −50 et 50 %.')
   }
   if (!durations.some((duration) => duration === parameters.years)) {
@@ -132,7 +167,7 @@ export function monthlyPayment(amount: number, annualRate: number, years: number
   const months = years * 12
   const rate = annualRate / 100 / 12
   if (rate === 0) return amount / months
-  return amount * rate / -Math.expm1(-months * Math.log1p(rate))
+  return (amount * rate) / -Math.expm1(-months * Math.log1p(rate))
 }
 
 export function calculateSimulation(parameters: SimulationParameters): {
@@ -143,7 +178,8 @@ export function calculateSimulation(parameters: SimulationParameters): {
   if (errors.length) return { projection: [], errors }
 
   const states = parameters.projects.map((project) => ({
-    project, debt: 0,
+    project,
+    debt: 0,
     payment: monthlyPayment(loanAmount(project), project.loanRate, project.loanYears),
   }))
   const monthlyRate = Math.expm1(Math.log1p(parameters.investmentRate / 100) / 12)
@@ -155,22 +191,29 @@ export function calculateSimulation(parameters: SimulationParameters): {
   let repayments = 0
   let propertyIncome = 0
   let propertyCharges = 0
-  const money = (value: number) => new Intl.NumberFormat('fr-FR', {
-    style: 'currency', currency: 'EUR', minimumFractionDigits: 2,
-  }).format(value)
+  const money = (value: number) =>
+    new Intl.NumberFormat('fr-FR', {
+      style: 'currency',
+      currency: 'EUR',
+      minimumFractionDigits: 2,
+    }).format(value)
 
   for (let month = 0; month <= parameters.years * 12; month++) {
     if (month > 0) {
       const gain = investment * monthlyRate
-      const income = states.reduce((sum, state) => sum +
-        (month > state.project.purchaseYear * 12 ? propertyMonthlyIncome(state.project) : 0), 0)
+      const income = states.reduce(
+        (sum, state) =>
+          sum +
+          (month > state.project.purchaseYear * 12 ? propertyMonthlyIncome(state.project) : 0),
+        0,
+      )
       investmentInterest += gain
       propertyIncome += income
       investment += gain + parameters.monthlySavings + income
       for (const state of states) {
         const elapsed = month - state.project.purchaseYear * 12
         if (elapsed <= 0 || elapsed > state.project.loanYears * 12) continue
-        const interest = state.debt * state.project.loanRate / 100 / 12
+        const interest = (state.debt * state.project.loanRate) / 100 / 12
         const repayment = Math.min(state.payment, state.debt + interest)
         loanInterest += interest
         repayments += repayment
@@ -180,16 +223,26 @@ export function calculateSimulation(parameters: SimulationParameters): {
     }
     if (month % 12 !== 0) continue
     const year = month / 12
-    const chargedProjects = states.filter((state) =>
-      state.project.propertyType === 'primary' && state.project.purchaseYear < year && state.project.annualCharges > 0)
-    const requiredCharges = chargedProjects.reduce((sum, state) => sum + state.project.annualCharges, 0)
+    const chargedProjects = states.filter(
+      (state) =>
+        state.project.propertyType === 'primary' &&
+        state.project.purchaseYear < year &&
+        state.project.annualCharges > 0,
+    )
+    const requiredCharges = chargedProjects.reduce(
+      (sum, state) => sum + state.project.annualCharges,
+      0,
+    )
     if (Math.round(requiredCharges * 100) > Math.round(investment * 100)) {
       return {
         projection: [],
-        errors: [`Année ${year} : capital insuffisant pour les charges annuelles des projets ${chargedProjects
-          .map((state) => projectName(state.project)).join(', ')}. ` +
-          `${money(requiredCharges)} nécessaires, ${money(investment)} disponibles. ` +
-          'Réduisez les charges ou augmentez l’épargne disponible.'],
+        errors: [
+          `Année ${year} : capital insuffisant pour les charges annuelles des projets ${chargedProjects
+            .map((state) => projectName(state.project))
+            .join(', ')}. ` +
+            `${money(requiredCharges)} nécessaires, ${money(investment)} disponibles. ` +
+            'Réduisez les charges ou augmentez l’épargne disponible.',
+        ],
       }
     }
     investment = Math.max(0, investment - requiredCharges)
@@ -200,26 +253,54 @@ export function calculateSimulation(parameters: SimulationParameters): {
     if (Math.round(requiredDeposit * 100) > Math.round(investment * 100)) {
       return {
         projection: [],
-        errors: [`Année ${year} : capital insuffisant pour les apports des projets ${purchases
-          .map((state) => `${parameters.projects.indexOf(state.project) + 1} (${projectName(state.project)})`).join(', ')}. ` +
-          `${money(requiredDeposit)} nécessaires, ${money(investment)} disponibles. ` +
-          'Réduisez les apports, augmentez l’épargne ou reportez les achats.'],
+        errors: [
+          `Année ${year} : capital insuffisant pour les apports des projets ${purchases
+            .map(
+              (state) =>
+                `${parameters.projects.indexOf(state.project) + 1} (${projectName(state.project)})`,
+            )
+            .join(', ')}. ` +
+            `${money(requiredDeposit)} nécessaires, ${money(investment)} disponibles. ` +
+            'Réduisez les apports, augmentez l’épargne ou reportez les achats.',
+        ],
       }
     }
     investment = Math.max(0, investment - requiredDeposit)
     deposits += requiredDeposit
-    purchases.forEach((state) => { state.debt = loanAmount(state.project) })
+    purchases.forEach((state) => {
+      state.debt = loanAmount(state.project)
+    })
 
     const purchased = states.filter((state) => state.project.purchaseYear <= year)
-    const property = purchased.reduce((sum, state) => sum + state.project.propertyPrice *
-      (1 + state.project.propertyRate / 100) ** (year - state.project.purchaseYear), 0)
+    const property = purchased.reduce(
+      (sum, state) =>
+        sum +
+        state.project.propertyPrice *
+          (1 + state.project.propertyRate / 100) ** (year - state.project.purchaseYear),
+      0,
+    )
     const debt = purchased.reduce((sum, state) => sum + state.debt, 0)
-    const monthlyPayments = purchased.reduce((sum, state) => sum +
-      (year - state.project.purchaseYear < state.project.loanYears ? state.payment : 0), 0)
+    const monthlyPayments = purchased.reduce(
+      (sum, state) =>
+        sum + (year - state.project.purchaseYear < state.project.loanYears ? state.payment : 0),
+      0,
+    )
     rows.push({
-      year, cash: 0, investment, contributions: parameters.monthlySavings * month,
-      deposits, propertyIncome, propertyCharges, investmentInterest, property, debt, loanInterest, repayments,
-      monthlyPayments, available: investment, netWorth: investment + property - debt,
+      year,
+      cash: 0,
+      investment,
+      contributions: parameters.monthlySavings * month,
+      deposits,
+      propertyIncome,
+      propertyCharges,
+      investmentInterest,
+      property,
+      debt,
+      loanInterest,
+      repayments,
+      monthlyPayments,
+      available: investment,
+      netWorth: investment + property - debt,
     })
   }
   return { projection: rows, errors: [] }

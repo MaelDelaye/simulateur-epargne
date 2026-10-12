@@ -17,10 +17,14 @@ describe.each([
     const wrapper = mount(component)
     expect(wrapper.element.tagName.toLowerCase()).toBe('svg')
     expect(wrapper.attributes()).toMatchObject({
-      xmlns: 'http://www.w3.org/2000/svg', width, height,
+      xmlns: 'http://www.w3.org/2000/svg',
+      width,
+      height,
     })
     expect(wrapper.get('path').attributes('d')).toBeTruthy()
-    expect(wrapper.attributes('fill') ?? wrapper.get('path').attributes('fill')).toBe('currentColor')
+    expect(wrapper.attributes('fill') ?? wrapper.get('path').attributes('fill')).toBe(
+      'currentColor',
+    )
   })
 
   it('forwards attributes to the SVG root', () => {

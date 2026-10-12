@@ -3,9 +3,14 @@ import { nextTick } from 'vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import App from '../App.vue'
 
-const money = (value: number) => new Intl.NumberFormat('fr-FR', {
-  style: 'currency', currency: 'EUR', maximumFractionDigits: 0,
-}).format(value).replace(/\s/g, ' ')
+const money = (value: number) =>
+  new Intl.NumberFormat('fr-FR', {
+    style: 'currency',
+    currency: 'EUR',
+    maximumFractionDigits: 0,
+  })
+    .format(value)
+    .replace(/\s/g, ' ')
 const text = (value: string) => value.replace(/\s/g, ' ')
 
 describe('App', () => {
@@ -63,43 +68,58 @@ describe('App', () => {
   })
 
   it.each([
-    ['3000', 1050], ['4000', 1400], ['2500,50', 875.175], ['0', 0],
-  ])('displays 35 percent of a net monthly salary of %s without changing the projection', async (salary, limit) => {
-    const wrapper = mount(App)
-    const initialProjection = wrapper.get('tbody').text()
-    await wrapper.get('#monthly-salary').setValue(salary)
-    const expected = new Intl.NumberFormat('fr-FR', {
-      style: 'currency', currency: 'EUR', minimumFractionDigits: 2, maximumFractionDigits: 2,
-    }).format(limit)
-    expect(text(wrapper.get('#debt-limit').text())).toBe(`${text(expected)} / mois`)
-    expect(wrapper.get('tbody').text()).toBe(initialProjection)
-    await wrapper.get('.parameters > .section-heading button').trigger('click')
-    expect(wrapper.get<HTMLInputElement>('#monthly-salary').element.value).toBe('0')
-  })
+    ['3000', 1050],
+    ['4000', 1400],
+    ['2500,50', 875.175],
+    ['0', 0],
+  ])(
+    'displays 35 percent of a net monthly salary of %s without changing the projection',
+    async (salary, limit) => {
+      const wrapper = mount(App)
+      const initialProjection = wrapper.get('tbody').text()
+      await wrapper.get('#monthly-salary').setValue(salary)
+      const expected = new Intl.NumberFormat('fr-FR', {
+        style: 'currency',
+        currency: 'EUR',
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }).format(limit)
+      expect(text(wrapper.get('#debt-limit').text())).toBe(`${text(expected)} / mois`)
+      expect(wrapper.get('tbody').text()).toBe(initialProjection)
+      await wrapper.get('.parameters > .section-heading button').trigger('click')
+      expect(wrapper.get<HTMLInputElement>('#monthly-salary').element.value).toBe('0')
+    },
+  )
 
-  it.each(['', '-1', 'abc', '100000001'])('shows an explicit error for invalid salary "%s"', async (salary) => {
-    const wrapper = mount(App)
-    await wrapper.get('#monthly-salary').setValue(salary)
-    expect(wrapper.get('#monthly-salary').attributes('aria-invalid')).toBe('true')
-    expect(wrapper.get('[role="alert"]').text()).toContain('Le salaire mensuel')
-    expect(wrapper.get('#debt-limit').text()).toContain('—')
-    expect(wrapper.find('table').exists()).toBe(true)
-    await wrapper.get('#monthly-salary').setValue('3000')
-    expect(wrapper.find('[role="alert"]').exists()).toBe(false)
-  })
+  it.each(['', '-1', 'abc', '100000001'])(
+    'shows an explicit error for invalid salary "%s"',
+    async (salary) => {
+      const wrapper = mount(App)
+      await wrapper.get('#monthly-salary').setValue(salary)
+      expect(wrapper.get('#monthly-salary').attributes('aria-invalid')).toBe('true')
+      expect(wrapper.get('[role="alert"]').text()).toContain('Le salaire mensuel')
+      expect(wrapper.get('#debt-limit').text()).toContain('—')
+      expect(wrapper.find('table').exists()).toBe(true)
+      await wrapper.get('#monthly-salary').setValue('3000')
+      expect(wrapper.find('[role="alert"]').exists()).toBe(false)
+    },
+  )
 
-  it.each(['secondary', 'rental'])('hides and ignores charges for %s and restores them for primary', async (propertyType) => {
-    const wrapper = mount(App)
-    await wrapper.get('#investment-rate').setValue('0')
-    await wrapper.get('#annual-charges-1').setValue('1000')
-    await wrapper.get('#property-type-1').setValue(propertyType)
-    expect(wrapper.find('#annual-charges-1').exists()).toBe(false)
-    expect(text(wrapper.findAll('tbody tr').at(-1)!.findAll('td')[0]!.text())).toBe(money(30000))
-    expect(text(wrapper.findAll('tbody tr').at(-1)!.findAll('td').at(-1)!.text())).toBe(money(0))
-    await wrapper.get('#property-type-1').setValue('primary')
-    expect(wrapper.get<HTMLInputElement>('#annual-charges-1').element.value).toBe('1 000')
-    expect(text(wrapper.findAll('tbody tr').at(-1)!.findAll('td')[0]!.text())).toBe(money(10000))
-  })
+  it.each(['secondary', 'rental'])(
+    'hides and ignores charges for %s and restores them for primary',
+    async (propertyType) => {
+      const wrapper = mount(App)
+      await wrapper.get('#investment-rate').setValue('0')
+      await wrapper.get('#annual-charges-1').setValue('1000')
+      await wrapper.get('#property-type-1').setValue(propertyType)
+      expect(wrapper.find('#annual-charges-1').exists()).toBe(false)
+      expect(text(wrapper.findAll('tbody tr').at(-1)!.findAll('td')[0]!.text())).toBe(money(30000))
+      expect(text(wrapper.findAll('tbody tr').at(-1)!.findAll('td').at(-1)!.text())).toBe(money(0))
+      await wrapper.get('#property-type-1').setValue('primary')
+      expect(wrapper.get<HTMLInputElement>('#annual-charges-1').element.value).toBe('1 000')
+      expect(text(wrapper.findAll('tbody tr').at(-1)!.findAll('td')[0]!.text())).toBe(money(10000))
+    },
+  )
 
   it('deducts charges, displays their cumulative cost and resets the input', async () => {
     const wrapper = mount(App)
@@ -123,7 +143,9 @@ describe('App', () => {
     await wrapper.get('#project-name-1').trigger('keydown', { key: 'Enter' })
     await wrapper.get('#investment-rate').setValue('0')
     await wrapper.get('#annual-charges-1').setValue('31000')
-    expect(wrapper.get('[role="alert"]').text()).toContain('Année 1 : capital insuffisant pour les charges annuelles des projets Maison')
+    expect(wrapper.get('[role="alert"]').text()).toContain(
+      'Année 1 : capital insuffisant pour les charges annuelles des projets Maison',
+    )
     expect(wrapper.find('table').exists()).toBe(false)
     await wrapper.get('#monthly-savings').setValue('3000')
     expect(wrapper.find('[role="alert"]').exists()).toBe(false)
@@ -139,7 +161,9 @@ describe('App', () => {
     await wrapper.get('#project-name-1').trigger('keydown', { key: 'Enter' })
     expect(wrapper.get('.project-heading h3').text()).toContain('Appartement Lyon')
     await wrapper.get('.add-project-button').trigger('click')
-    expect(wrapper.get('#edit-project-name-2').attributes('aria-label')).toBe('Renommer Projet immobilier 2')
+    expect(wrapper.get('#edit-project-name-2').attributes('aria-label')).toBe(
+      'Renommer Projet immobilier 2',
+    )
     expect(wrapper.find('[aria-label="Supprimer Appartement Lyon"]').exists()).toBe(true)
     await wrapper.get('#loan-rate-1').setValue('-1')
     expect(wrapper.get('[role="alert"]').text()).toContain('Appartement Lyon')
@@ -172,34 +196,39 @@ describe('App', () => {
     expect(wrapper.get('.project-heading h3').text()).toContain('Maison')
   })
 
-  it.each(['secondary', 'rental'])('allows income for %s and ignores it when switching back to primary', async (propertyType) => {
-    const wrapper = mount(App)
-    expect(wrapper.get<HTMLSelectElement>('#property-type-1').element.value).toBe('primary')
-    expect(wrapper.find('#net-income-1').exists()).toBe(false)
-    await wrapper.get('#investment-rate').setValue('0')
-    await wrapper.get('#property-type-1').setValue(propertyType)
-    expect(wrapper.get<HTMLInputElement>('#net-income-1').element.value).toBe('0')
-    await wrapper.get('#net-income-1').setValue('500')
-    const cells = wrapper.findAll('tbody tr').at(-1)!.findAll('td')
-    expect(text(cells[0]!.text())).toBe(money(150000))
-    expect(text(cells[3]!.text())).toBe(money(0))
-    expect(text(cells[9]!.text())).toBe(money(120000))
-    await wrapper.get('#property-type-1').setValue('primary')
-    expect(wrapper.find('#net-income-1').exists()).toBe(false)
-    expect(text(wrapper.findAll('tbody tr').at(-1)!.findAll('td')[0]!.text())).toBe(money(30000))
-    await wrapper.get('#property-type-1').setValue(propertyType)
-    expect(wrapper.get<HTMLInputElement>('#net-income-1').element.value).toBe('500')
-    await wrapper.get('.parameters > .section-heading button').trigger('click')
-    expect(wrapper.get<HTMLSelectElement>('#property-type-1').element.value).toBe('primary')
-    expect(wrapper.find('#net-income-1').exists()).toBe(false)
-  })
+  it.each(['secondary', 'rental'])(
+    'allows income for %s and ignores it when switching back to primary',
+    async (propertyType) => {
+      const wrapper = mount(App)
+      expect(wrapper.get<HTMLSelectElement>('#property-type-1').element.value).toBe('primary')
+      expect(wrapper.find('#net-income-1').exists()).toBe(false)
+      await wrapper.get('#investment-rate').setValue('0')
+      await wrapper.get('#property-type-1').setValue(propertyType)
+      expect(wrapper.get<HTMLInputElement>('#net-income-1').element.value).toBe('0')
+      await wrapper.get('#net-income-1').setValue('500')
+      const cells = wrapper.findAll('tbody tr').at(-1)!.findAll('td')
+      expect(text(cells[0]!.text())).toBe(money(150000))
+      expect(text(cells[3]!.text())).toBe(money(0))
+      expect(text(cells[9]!.text())).toBe(money(120000))
+      await wrapper.get('#property-type-1').setValue('primary')
+      expect(wrapper.find('#net-income-1').exists()).toBe(false)
+      expect(text(wrapper.findAll('tbody tr').at(-1)!.findAll('td')[0]!.text())).toBe(money(30000))
+      await wrapper.get('#property-type-1').setValue(propertyType)
+      expect(wrapper.get<HTMLInputElement>('#net-income-1').element.value).toBe('500')
+      await wrapper.get('.parameters > .section-heading button').trigger('click')
+      expect(wrapper.get<HTMLSelectElement>('#property-type-1').element.value).toBe('primary')
+      expect(wrapper.find('#net-income-1').exists()).toBe(false)
+    },
+  )
 
   it('keeps types and income independent between projects and validates income', async () => {
     const wrapper = mount(App)
     await wrapper.get('.add-project-button').trigger('click')
     await wrapper.get('#property-type-2').setValue('rental')
     await wrapper.get('#net-income-2').setValue('-1')
-    expect(wrapper.get('[role="alert"]').text()).toContain('Projet 2 : Projet immobilier 2 — Les revenus nets mensuels')
+    expect(wrapper.get('[role="alert"]').text()).toContain(
+      'Projet 2 : Projet immobilier 2 — Les revenus nets mensuels',
+    )
     expect(wrapper.find('#net-income-1').exists()).toBe(false)
     await wrapper.get('#net-income-2').setValue('1000')
     expect(wrapper.find('[role="alert"]').exists()).toBe(false)
@@ -236,7 +265,9 @@ describe('App', () => {
 
   it.each([5, 10, 15, 20, 25])('switches the simulation to %s years', async (years) => {
     const wrapper = mount(App)
-    const button = wrapper.findAll('.duration-options button').find((item) => item.text() === `${years} ans`)!
+    const button = wrapper
+      .findAll('.duration-options button')
+      .find((item) => item.text() === `${years} ans`)!
     await button.trigger('click')
     expect(button.attributes('aria-pressed')).toBe('true')
     expect(wrapper.findAll('tbody tr')).toHaveLength(years + 1)
@@ -349,13 +380,18 @@ describe('App', () => {
   it('exports the displayed projection with numeric CSV columns and releases the URL', async () => {
     const createObjectURL = vi.fn<(blob: Blob) => string>().mockReturnValue('blob:simulation')
     const revokeObjectURL = vi.fn()
-    vi.stubGlobal('URL', class extends URL {
-      static override createObjectURL = createObjectURL
-      static override revokeObjectURL = revokeObjectURL
-    })
+    vi.stubGlobal(
+      'URL',
+      class extends URL {
+        static override createObjectURL = createObjectURL
+        static override revokeObjectURL = revokeObjectURL
+      },
+    )
     let download = ''
     let href = ''
-    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) {
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (
+      this: HTMLAnchorElement,
+    ) {
       download = this.download
       href = this.getAttribute('href') ?? ''
     })

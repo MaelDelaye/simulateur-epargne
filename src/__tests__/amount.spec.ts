@@ -3,8 +3,11 @@ import { formatAmount, groupAmountInput, parseAmount } from '../amount'
 
 describe('amount formatting', () => {
   it.each([
-    [0, '0'], [10000, '10 000'], [1000000, '1 000 000'],
-    [10000.25, '10 000,25'], [-10000, '-10 000'],
+    [0, '0'],
+    [10000, '10 000'],
+    [1000000, '1 000 000'],
+    [10000.25, '10 000,25'],
+    [-10000, '-10 000'],
   ])('formats %s as %s and parses it back', (value, formatted) => {
     expect(formatAmount(value)).toBe(formatted)
     expect(parseAmount(formatted)).toBe(value)
@@ -24,8 +27,13 @@ describe('amount formatting', () => {
   })
 
   it.each([
-    ['10000', '10 000'], ['10000,', '10 000,'], ['10000.25', '10 000,25'],
-    ['1 000 000', '1 000 000'], ['-10000', '-10 000'], ['', ''], ['abc', 'abc'],
+    ['10000', '10 000'],
+    ['10000,', '10 000,'],
+    ['10000.25', '10 000,25'],
+    ['1 000 000', '1 000 000'],
+    ['-10000', '-10 000'],
+    ['', ''],
+    ['abc', 'abc'],
   ])('groups input "%s" as "%s"', (input, expected) => {
     expect(groupAmountInput(input)).toBe(expected)
   })
