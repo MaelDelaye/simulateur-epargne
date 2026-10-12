@@ -7,7 +7,7 @@ import type { PropertyProject, SimulationParameters } from '../simulation'
 
 const project = (id = 1, overrides: Partial<PropertyProject> = {}): PropertyProject => ({
   id, name: `Projet immobilier ${id}`, propertyType: 'primary', monthlyNetIncome: 0, purchaseYear: 0, propertyPrice: 230000, deposit: 30000,
-  loanRate: 3.5, loanYears: 20, propertyRate: 0, ...overrides,
+  loanRate: 3.5, loanYears: 20, propertyRate: 0, annualCharges: 0, ...overrides,
 })
 const parameters = (overrides: Partial<SimulationParameters> = {}): SimulationParameters => ({
   savings: 60000, monthlySavings: 200, investmentRate: 5, years: 20,
@@ -51,6 +51,78 @@ describe('financial helpers', () => {
 })
 
 describe('simulation', () => {
+  it.each(['primary', 'secondary', 'rental'] as const)('deducts annual charges from a %s property only after purchase', (propertyType) => {
+    const input = parameters({
+      investmentRate: 0, monthlySavings: 0, years: 10,
+      projects: [project(1, { propertyType, annualCharges: 1000, purchaseYear: 2, loanYears: 5 })],
+    })
+    const rows = simulate(input)
+    expect(rows[2]!.propertyCharges).toBe(0)
+    expect(rows[3]!.propertyCharges).toBe(1000)
+    expect(rows[10]!.propertyCharges).toBe(8000)
+    expect(rows[10]!.investment).toBe(22000)
+    expect(rows[10]!.investmentInterest).toBe(0)
+    for (const row of rows) {
+      expect(row.investment).toBeCloseTo(input.savings + row.contributions + row.propertyIncome -
+        row.deposits - row.propertyCharges + row.investmentInterest, 6)
+    }
+  })
+
+  it('reduces subsequent investment returns without treating expenses as lost interest', () => {
+    const rows = simulate(parameters({
+      monthlySavings: 0, years: 5, projects: [project(1, { annualCharges: 1000 })],
+    }))
+    let balance = 30000
+    let interest = 0
+    for (let year = 1; year <= 5; year++) {
+      interest += balance * 0.05
+      balance = balance * 1.05 - 1000
+      expect(rows[year]!.investment).toBeCloseTo(balance, 6)
+      expect(rows[year]!.investmentInterest).toBeCloseTo(interest, 6)
+    }
+  })
+
+  it('combines simultaneous charges and alerts when the placement cannot cover them', () => {
+    const input = parameters({
+      savings: 1000, monthlySavings: 0, investmentRate: 0,
+      projects: [
+        project(1, { name: 'Maison', deposit: 0, annualCharges: 600 }),
+        project(2, { name: 'Studio', deposit: 0, annualCharges: 600 }),
+      ],
+    })
+    const result = calculateSimulation(input)
+    expect(result.projection).toEqual([])
+    expect(result.errors[0]).toMatch(/Année 1.*charges annuelles.*Maison, Studio/)
+    expect(() => simulate(input)).toThrow(RangeError)
+  })
+
+  it('pays charges after monthly savings and property income, before same-year purchases', () => {
+    const input = parameters({
+      savings: 0, monthlySavings: 50, investmentRate: 0, years: 5,
+      projects: [
+        project(1, { propertyType: 'rental', monthlyNetIncome: 50, deposit: 0, annualCharges: 1200 }),
+        project(2, { purchaseYear: 1, deposit: 100 }),
+      ],
+    })
+    expect(calculateSimulation(input).errors[0]).toMatch(/Année 1.*apports/)
+    const rows = simulate({ ...input, projects: [input.projects[0]!] })
+    expect(rows[1]!.investment).toBe(0)
+    expect(rows[5]!.propertyCharges).toBe(6000)
+    expect(rows[5]!.propertyIncome).toBe(3000)
+    expect(rows[5]!.contributions).toBe(3000)
+  })
+
+  it.each([5, 6])('does not charge a project purchased in year %s within a 5-year horizon', (purchaseYear) => {
+    const rows = simulate(parameters({ years: 5, projects: [project(1, { purchaseYear, annualCharges: 100000 })] }))
+    expect(rows.at(-1)!.propertyCharges).toBe(0)
+  })
+
+  it.each([-1, NaN, Infinity, 100000001])('rejects invalid annual charges %s', (annualCharges) => {
+    const input = parameters({ projects: [project(1, { annualCharges })] })
+    expect(validateParameters(input).join(' ')).toContain('charges annuelles')
+    expect(() => simulate(input)).toThrow(RangeError)
+  })
+
   it.each(['secondary', 'rental'] as const)('reinvests net income from a %s property after purchase', (propertyType) => {
     const input = parameters({
       investmentRate: 0, monthlySavings: 0, years: 10,

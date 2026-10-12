@@ -11,6 +11,7 @@ export interface PropertyProject {
   name: string
   propertyType: PropertyType
   monthlyNetIncome: number
+  annualCharges: number
   purchaseYear: number
   propertyPrice: number
   deposit: number
@@ -33,6 +34,7 @@ export interface Projection {
   investment: number
   contributions: number
   propertyIncome: number
+  propertyCharges: number
   deposits: number
   investmentInterest: number
   property: number
@@ -67,6 +69,10 @@ export function propertyMonthlyIncome(project: PropertyProject): number {
 
 export function validateProject(project: PropertyProject): string[] {
   const errors: string[] = []
+  if (!Number.isFinite(project.annualCharges) || project.annualCharges < 0 ||
+      project.annualCharges > 100_000_000) {
+    errors.push('Les charges annuelles doivent être comprises entre 0 et 100 000 000 €.')
+  }
   if (!propertyTypes.some((type) => type.value === project.propertyType)) {
     errors.push('Sélectionnez un type de bien immobilier valide.')
   }
@@ -148,6 +154,10 @@ export function calculateSimulation(parameters: SimulationParameters): {
   let loanInterest = 0
   let repayments = 0
   let propertyIncome = 0
+  let propertyCharges = 0
+  const money = (value: number) => new Intl.NumberFormat('fr-FR', {
+    style: 'currency', currency: 'EUR', minimumFractionDigits: 2,
+  }).format(value)
 
   for (let month = 0; month <= parameters.years * 12; month++) {
     if (month > 0) {
@@ -170,13 +180,24 @@ export function calculateSimulation(parameters: SimulationParameters): {
     }
     if (month % 12 !== 0) continue
     const year = month / 12
+    const chargedProjects = states.filter((state) =>
+      state.project.purchaseYear < year && state.project.annualCharges > 0)
+    const requiredCharges = chargedProjects.reduce((sum, state) => sum + state.project.annualCharges, 0)
+    if (Math.round(requiredCharges * 100) > Math.round(investment * 100)) {
+      return {
+        projection: [],
+        errors: [`Année ${year} : capital insuffisant pour les charges annuelles des projets ${chargedProjects
+          .map((state) => projectName(state.project)).join(', ')}. ` +
+          `${money(requiredCharges)} nécessaires, ${money(investment)} disponibles. ` +
+          'Réduisez les charges ou augmentez l’épargne disponible.'],
+      }
+    }
+    investment = Math.max(0, investment - requiredCharges)
+    propertyCharges += requiredCharges
     const purchases = states.filter((state) => state.project.purchaseYear === year)
     const requiredDeposit = purchases.reduce((sum, state) => sum + state.project.deposit, 0)
     // Compare at cent precision to avoid rejecting an exactly funded purchase due to rounding.
     if (Math.round(requiredDeposit * 100) > Math.round(investment * 100)) {
-      const money = (value: number) => new Intl.NumberFormat('fr-FR', {
-        style: 'currency', currency: 'EUR', minimumFractionDigits: 2,
-      }).format(value)
       return {
         projection: [],
         errors: [`Année ${year} : capital insuffisant pour les apports des projets ${purchases
@@ -197,7 +218,7 @@ export function calculateSimulation(parameters: SimulationParameters): {
       (year - state.project.purchaseYear < state.project.loanYears ? state.payment : 0), 0)
     rows.push({
       year, cash: 0, investment, contributions: parameters.monthlySavings * month,
-      deposits, propertyIncome, investmentInterest, property, debt, loanInterest, repayments,
+      deposits, propertyIncome, propertyCharges, investmentInterest, property, debt, loanInterest, repayments,
       monthlyPayments, available: investment, netWorth: investment + property - debt,
     })
   }
